@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ぼかてっく">
+<meta name="theme-color" content="#121219" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f5f3f8" media="(prefers-color-scheme: light)">
+<title>ぼかてっくノート</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+  /* Layout: 3階層のノート帳。ホーム（3つの棚）→ 一覧（小分けタブ）→ 1件の中身。棚ごとに色が決まっていて、どこにいても色で分かる */
+  :root {
+    --bg: #121219;
+    --surface: #1b1a25;
+    --surface-2: #232231;
+    --line: #2f2d40;
+    --fg: #ecebf3;
+    --sub: #a09db4;
+    --faint: #6f6c84;
+    --tech: #ff6aa8;
+    --song: #6fd0f2;
+    --trouble: #ff8a5c;
+    --amber: #f2c26b;
+    --amber-bg: #2a2416;
+    --done: #5fd39a;
+    --danger: #ff7d7d;
+    --ink-on: #16121c;
+    --display: "Dela Gothic One", "Zen Kaku Gothic New", "Hiragino Sans", sans-serif;
+    --body: "Zen Kaku Gothic New", "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    --r: 14px;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f5f3f8; --surface: #ffffff; --surface-2: #f0edf5; --line: #e2dde9;
+      --fg: #221f2c; --sub: #67637a; --faint: #9a96ab;
+      --tech: #d42f78; --song: #1b7ea8; --trouble: #c4511f;
+      --amber: #8f6210; --amber-bg: #fbf3e2; --done: #1d8a56; --danger: #c43a3a; --ink-on: #ffffff;
+      color-scheme: light;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f5f3f8; --surface: #ffffff; --surface-2: #f0edf5; --line: #e2dde9;
+    --fg: #221f2c; --sub: #67637a; --faint: #9a96ab;
+    --tech: #d42f78; --song: #1b7ea8; --trouble: #c4511f;
+    --amber: #8f6210; --amber-bg: #fbf3e2; --done: #1d8a56; --danger: #c43a3a; --ink-on: #ffffff;
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    margin: 0; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--bg); color: var(--fg); font-family: var(--body);
+    font-size: 15px; line-height: 1.7; -webkit-font-smoothing: antialiased;
+    --c: var(--tech);
+  }
+  body[data-sec="song"] { --c: var(--song); }
+  body[data-sec="trouble"] { --c: var(--trouble); }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--c); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+
+  .wrap {
+    max-width: 680px; margin: 0 auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+
+  /* ---------- 上の帯 ---------- */
+  header.bar {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  header .wrap { padding-block: 12px 10px; display: flex; flex-direction: column; gap: 10px; }
+  .row1 { display: flex; align-items: center; gap: 10px; min-height: 36px; }
+  .back {
+    flex: none; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--surface); font-size: 18px; line-height: 1; display: grid; place-items: center;
+  }
+  .crumb { flex: 1; min-width: 0; }
+  .crumb .app { font-family: var(--display); font-weight: 400; font-size: 20px; line-height: 1.2; margin: 0; }
+  .crumb .app span { color: var(--tech); }
+  .crumb .where { font-family: var(--display); font-weight: 400; font-size: 19px; line-height: 1.2; margin: 0; color: var(--c); }
+  .crumb .path { font-size: 11px; color: var(--faint); font-family: var(--mono); letter-spacing: 0.04em; }
+  .addbtn {
+    flex: none; height: 36px; padding: 0 14px; border-radius: 10px; border: 0;
+    background: var(--c); color: var(--ink-on); font-weight: 700; font-size: 14px;
+  }
+  #q {
+    width: 100%; padding: 9px 12px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--surface); font-size: 16px;
+  }
+  #q::placeholder { color: var(--faint); }
+
+  .strip { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .strip::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: none; padding: 5px 12px; border-radius: 999px; font-size: 12.5px; white-space: nowrap;
+    border: 1px solid var(--line); background: var(--surface); color: var(--sub);
+  }
+  .chip[aria-pressed="true"] { background: var(--c); border-color: var(--c); color: var(--ink-on); font-weight: 700; }
+  .chip.mini { font-size: 11.5px; padding: 3px 10px; background: transparent; }
+  .chip.mini[aria-pressed="true"] { background: var(--fg); border-color: var(--fg); color: var(--bg); }
+  .chip .n { font-family: var(--mono); font-size: 10.5px; opacity: 0.75; margin-left: 4px; }
+
+  main .wrap { padding-block: 14px 72px; }
+  .status { font-size: 12px; color: var(--faint); text-align: center; margin-top: 26px; }
+
+  /* ---------- ホーム ---------- */
+  .shelves { display: flex; flex-direction: column; gap: 12px; }
+  .shelf {
+    --c: var(--tech);
+    text-align: left; width: 100%; border: 1px solid var(--line); border-radius: 18px;
+    background: var(--surface); padding: 16px 16px 14px; display: grid;
+    grid-template-columns: 1fr auto; gap: 4px 12px; position: relative; overflow: hidden;
+  }
+  .shelf::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 5px; background: var(--c); }
+  .shelf.song { --c: var(--song); }
+  .shelf.trouble { --c: var(--trouble); }
+  .shelf h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 24px; line-height: 1.25; color: var(--c); }
+  .shelf .cnt { font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--fg); align-self: start; font-variant-numeric: tabular-nums; }
+  .shelf .cnt small { font-size: 11px; color: var(--faint); font-weight: 500; margin-left: 2px; }
+  .shelf .what { grid-column: 1 / -1; font-size: 12.5px; color: var(--sub); margin: 0; }
+  .shelf .latest { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 2px; margin-top: 6px; font-size: 13px; }
+  .shelf .latest span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--fg); }
+  .shelf .latest span::before { content: "・"; color: var(--c); }
+  .shelf .alert { grid-column: 1 / -1; font-size: 12px; color: var(--trouble); font-weight: 700; }
+
+  .home-h {
+    font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+    color: var(--faint); margin: 26px 2px 10px; display: flex; align-items: center; gap: 10px;
+  }
+  .home-h::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+  /* ---------- 一覧 ---------- */
+  .list { display: flex; flex-direction: column; gap: 8px; }
+  .item {
+    --c: var(--tech);
+    width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--r); padding: 12px 14px; display: flex; flex-direction: column; gap: 5px; min-width: 0;
+  }
+  .item.song { --c: var(--song); }
+  .item.trouble { --c: var(--trouble); }
+  .item.is-done { opacity: 0.6; }
+  .item .t { font-weight: 700; font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
+  .item .s { font-size: 12.5px; color: var(--sub); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .meta { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+  .tag { font-size: 10.5px; padding: 1px 8px; border-radius: 6px; background: var(--surface-2); color: var(--sub); }
+  .tag.k { color: var(--c); }
+  .tag.new { background: var(--c); color: var(--ink-on); font-weight: 700; }
+  .tag.open { background: color-mix(in srgb, var(--trouble) 18%, transparent); color: var(--trouble); font-weight: 700; }
+  .tag.ok { color: var(--done); }
+  .tag.star { color: var(--amber); }
+  .tag.mine { background: color-mix(in srgb, var(--song) 20%, transparent); color: var(--song); font-weight: 700; }
+  .meta .d { margin-left: auto; font-family: var(--mono); font-size: 10.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
+
+  .empty {
+    text-align: center; color: var(--sub); font-size: 13.5px; padding: 40px 16px;
+    border: 1px dashed var(--line); border-radius: var(--r);
+  }
+  .empty b { display: block; font-family: var(--display); font-weight: 400; color: var(--fg); font-size: 17px; margin-bottom: 6px; }
+
+  /* ---------- 1件の中身 ---------- */
+  .detail { display: flex; flex-direction: column; gap: 14px; }
+  .detail h2 { margin: 0; font-size: 21px; line-height: 1.45; font-weight: 700; text-wrap: balance; overflow-wrap: anywhere; }
+  .block { display: flex; flex-direction: column; gap: 4px; }
+  .block .lab { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em; color: var(--faint); font-weight: 700; }
+  .block .txt { font-size: 15px; white-space: pre-line; overflow-wrap: anywhere; }
+  .block.fix .txt, .block.try .txt {
+    background: var(--amber-bg); color: var(--amber); border-radius: 10px; padding: 10px 12px; font-size: 14.5px;
+  }
+  .block.fix .txt { background: color-mix(in srgb, var(--done) 13%, transparent); color: var(--fg); }
+  .block a { color: var(--c); overflow-wrap: anywhere; text-underline-offset: 3px; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+  .fact { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; min-width: 0; }
+  .fact .lab { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; color: var(--faint); font-weight: 700; }
+  .fact .v { font-weight: 700; font-size: 15px; overflow-wrap: anywhere; }
+  .block.todo .txt { background: color-mix(in srgb, var(--song) 14%, transparent); border-radius: 10px; padding: 10px 12px; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 6px; border-top: 1px solid var(--line); }
+  .act {
+    font-size: 13px; padding: 7px 12px; border-radius: 9px; border: 1px solid var(--line);
+    background: transparent; color: var(--sub);
+  }
+  .act[aria-pressed="true"].done { background: var(--done); border-color: var(--done); color: var(--bg); font-weight: 700; }
+  .act[aria-pressed="true"].star { background: var(--amber); border-color: var(--amber); color: var(--bg); font-weight: 700; }
+  .act.warn { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 50%, var(--line)); }
+  .act.push { margin-left: auto; }
+
+  /* ---------- 書くシート ---------- */
+  .sheet-back {
+    position: fixed; inset: 0; z-index: 20; background: rgba(8, 7, 14, 0.55);
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .sheet {
+    width: 100%; max-width: 680px; max-height: 92%; overflow-y: auto;
+    background: var(--surface); border-radius: 18px 18px 0 0; border: 1px solid var(--line);
+    padding-block: 18px calc(18px + env(safe-area-inset-bottom, 0px));
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .sheet h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 18px; color: var(--c); }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label { font-size: 12px; color: var(--sub); }
+  .field input, .field textarea, .field select {
+    padding: 9px 11px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); font-size: 16px; min-width: 0;
+  }
+  .field textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .songf { display: flex; flex-direction: column; gap: 12px; }
+  .sheet-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .btn { padding: 9px 16px; border-radius: 10px; border: 1px solid var(--line); background: transparent; font-weight: 700; }
+  .btn.primary { background: var(--c); border-color: var(--c); color: var(--ink-on); }
+  .formerr { color: var(--danger); font-size: 12.5px; min-height: 1em; margin: 0; }
+
+  /* ---------- 同期パネル ---------- */
+  .syncbox {
+    margin-top: 30px; border: 1px solid var(--line); border-radius: 16px;
+    background: var(--surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .syncbox h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 16px; color: var(--song); }
+  .syncbox p { margin: 0; font-size: 12.5px; color: var(--sub); line-height: 1.75; }
+  .syncbox .nums { font-family: var(--mono); font-size: 12px; color: var(--faint); }
+  .syncbox .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .syncbox textarea {
+    width: 100%; min-height: 110px; font-family: var(--mono); font-size: 11.5px; line-height: 1.6;
+    padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); resize: vertical;
+  }
+  .syncbox .ok { color: var(--done); font-size: 12.5px; min-height: 1em; }
+
+  @media (max-width: 420px) { .two { grid-template-columns: 1fr; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="wrap">
+    <div class="row1">
+      <button class="back" id="backBtn" type="button" aria-label="もどる" hidden>‹</button>
+      <div class="crumb" id="crumb"></div>
+      <button class="addbtn" id="addBtn" type="button" hidden>＋ 書く</button>
+    </div>
+    <input id="q" type="search" placeholder="ぜんぶから検索" autocomplete="off">
+    <div class="strip" id="subStrip" role="group" aria-label="小分け" hidden></div>
+    <div class="strip" id="flagStrip" role="group" aria-label="絞り込み" hidden></div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div id="view"></div>
+    <p class="status" id="status"></p>
+  </div>
+</main>
+
+<div class="sheet-back" id="sheetBack" hidden>
+  <form class="sheet" id="sheet" novalidate>
+    <h2 id="sheetTitle">書く</h2>
+    <div class="field" id="wSub"><label for="fSub" id="lSub">小分け</label><select id="fSub"></select></div>
+    <div class="field"><label for="fTitle" id="lTitle">タイトル</label><input id="fTitle" maxlength="140"></div>
+    <div class="field"><label for="fBody" id="lBody">内容</label><textarea id="fBody" rows="4"></textarea></div>
+    <div class="field" id="wFix"><label for="fFix">どうやって直したか</label><textarea id="fFix" rows="4"></textarea></div>
+    <div class="field" id="wStatus"><label for="fStatus">いまの状態</label>
+      <select id="fStatus"><option value="solved">解決した</option><option value="open">まだ解決していない</option></select></div>
+    <div id="wSong" class="songf">
+      <div class="two">
+        <div class="field"><label for="sDir">方向</label><select id="sDir"><option value="rock">ボカロック・ポップス</option><option value="edm">EDM・ダンス</option><option value="other">そのほか</option></select></div>
+        <div class="field"><label for="sVoice">歌声（ボーカル）</label><input id="sVoice" placeholder="例：SynthV 夏色花梨"></div>
+      </div>
+      <div class="two">
+        <div class="field"><label for="sBpm">BPM</label><input id="sBpm" inputmode="decimal" placeholder="128"></div>
+        <div class="field"><label for="sKey">キー</label><input id="sKey" placeholder="Cm"></div>
+      </div>
+      <div class="field"><label for="sChords">コード進行・構成</label><textarea id="sChords" rows="2" placeholder="サビ：IV→V→iii→vi"></textarea></div>
+      <div class="field"><label for="sGear">使用機材（楽器・ハード）</label><textarea id="sGear" rows="2" placeholder="Les Paul → Axe-Fx III（プリセット名）"></textarea></div>
+      <div class="field"><label for="sPlugins">プラグイン・音源</label><textarea id="sPlugins" rows="3" placeholder="Serum 2（リード）、Superior Drummer 3、Pro-Q 3、soothe2…"></textarea></div>
+      <div class="field"><label for="sMix">ミックス・音作りのメモ</label><textarea id="sMix" rows="3"></textarea></div>
+      <div class="field"><label for="sTodo">次にやること</label><textarea id="sTodo" rows="2"></textarea></div>
+      <div class="field"><label for="sDue">締切・応募先</label><input id="sDue" placeholder="例：ボカコレ秋 11/20"></div>
+    </div>
+    <div class="field" id="wTip"><label for="fTip">やってみる（Cubase や手持ちの機材で）</label><textarea id="fTip" rows="3"></textarea></div>
+    <div class="two" id="wInstTags">
+      <div class="field"><label for="fInst">楽器</label><select id="fInst"></select></div>
+      <div class="field"><label for="fTags">タグ（、で区切る）</label><input id="fTags" placeholder="EQ、ボーカル"></div>
+    </div>
+    <div class="two" id="wSrc">
+      <div class="field"><label for="fSrcLabel">出どころ</label><input id="fSrcLabel" placeholder="曲名・記事名など"></div>
+      <div class="field"><label for="fSrcUrl">リンク</label><input id="fSrcUrl" type="url" placeholder="https://"></div>
+    </div>
+    <p class="formerr" id="formErr"></p>
+    <div class="sheet-actions">
+      <button type="button" class="btn" id="cancelBtn">やめる</button>
+      <button type="submit" class="btn primary" id="saveBtn">保存</button>
+    </div>
+  </form>
+</div>
+
+<script type="application/json" id="snapshot">{"built":"2026-10-18","count":47,"notes":[{"id":"arr-01","added":"2026-09-15","body":"Aメロは楽器を絞ってボーカルの息遣いを聴かせ、サビで一気に楽器数と帯域を広げると音量を上げずに“サビ感”が出せる。ラウドネス競争に頼らない王道テクニック。","done":false,"inst":"general","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"arrange","tags":["構成","ダイナミクス"],"tip":"Cubaseのミックスコンソールでセクションごとにチャンネル数をVCA/フォルダでグループ化しておくと、セクション単位のミュート比較がしやすい。","title":"サビだけ「帯域を空ける」引き算アレンジ"},{"id":"arr-02","added":"2026-09-15","body":"ボカロ曲はメロディが情報量多めになりがちなので、裏メロ(オブリガード)は歌が伸ばしている間や休符の瞬間だけ鳴らす。歌とぶつかると聴感上ゴチャつく最大要因になる。","done":false,"inst":"synth","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"arrange","tags":["編曲","ボーカル被り回避"],"tip":"ボーカルトラックをソロ再生しながら空白部分にロケーターを立て、その区間だけ裏メロを打ち込むと配置ミスが減る。","title":"裏メロは歌の“隙間”にだけ配置"},{"id":"arr-03","added":"2026-09-15","body":"キック・ハイハット・スネアを全パート鳴らし続けず、Bメロでハイハットだけ抜く、落ちサビでキックだけにするなど要素の抜き差しで展開感を演出する。音数を増やすより効果的な場合が多い。","done":false,"inst":"drums","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"arrange","tags":["ドラム","展開"],"tip":"ドラムエディター上でセクションごとにパートをミュートしたバリエーションをトラック複製で保存し、比較試聴する。","title":"ドラムは“抜き差し”で展開を作る"},{"id":"arr-04","added":"2026-09-15","body":"サビ直後の間奏で音量・音数を一気に落とすと次のBメロ/大サビへの“溜め”が作れる。落としすぎると失速するので、リズム隊は残すのがコツ。","done":false,"inst":"general","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"arrange","tags":["構成","空間演出"],"tip":"間奏区間だけオートメーションでリバーブセンド量を上げると、空間的な“抜け感”が簡単に演出できる。","title":"間奏はテンションを一段階だけ落とす"},{"id":"comp-01","added":"2026-09-15","body":"Aメロ・Bメロを順次進行(隣り合う音)中心にしておき、サビ頭だけ5度や6度の跳躍を入れると一気に開ける印象になる。ボカロ曲は音域が広く取れるので、人の声では出しにくい跳躍幅を使うのも武器になる。","done":false,"inst":"vocal","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"compose","tags":["メロディ","構成"],"tip":"Cubaseのコードトラックでコード進行を先に置き、スコアエディタでメロディの音程差を目視確認すると跳躍の位置が調整しやすい。","title":"サビ頭は「跳躍」で耳を掴む"},{"id":"comp-02","added":"2026-09-15","body":"半音上げ/全音上げの安易な転調を避け、平行調やIVmを経由した転調にすると耳が疲れにくく、ボカロ曲特有の“劇伴っぽさ”が出せる。","done":false,"inst":"vocal","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"compose","tags":["転調","構成"],"tip":"コードトラックの「コードアシスタント」で候補コードを試聴し、転調先のトニックへ自然につながる経由コードを探す。","title":"転調は「サビ2回目」か「ラスサビ前」"},{"id":"comp-03","added":"2026-09-15","body":"日本語詞は子音が少なく音符が詰まりやすい。16分の詰め込みパートと、母音を伸ばす“聴かせ”パートを意図的に交互配置すると、ボーカロイドでも滑舌が破綻しにくい。","done":false,"inst":"vocal","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"compose","tags":["作詞連携","リズム"],"tip":"打ち込み前にキーエディタでラフに音価だけ並べ、歌詞を仮当てして詰まる箇所がないか先にチェックする。","title":"歌詞の子音密度でメロディのリズムを決める"},{"id":"comp-04","added":"2026-09-15","body":"日本人が好む哀愁メロは、ペンタトニックを基本にしつつ経過音として#4度やb6度を一瞬だけ通過させると効果的。使いすぎると民謡っぽくなるので1曲に1〜2箇所が目安。","done":false,"inst":"vocal","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"compose","tags":["メロディ","スケール"],"tip":"該当音符だけベロシティを少し下げると“通過音感”が強まり浮かずに馴染む。","title":"ペンタトニック逸脱で“エモさ”を作る"},{"id":"mast-01","added":"2026-09-15","body":"配信サービスは概ね-14LUFS前後にラウドネスノーマライズされるため、それより極端に上げても実際の再生音量は変わらず音圧が潰れるだけになりがち。-14〜-9LUFS程度を目安に、曲の雰囲気に応じて調整する。","done":false,"inst":"general","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"master","tags":["ラウドネス","LUFS"],"tip":"SuperVision などのラウドネスメーターでLUFS-Iを確認しながらリミッターの詰め具合を決める。","title":"ラウドネスはストリーミング基準に合わせる"},{"id":"mast-02","added":"2026-09-15","body":"自分の耳は長時間の作業で麻痺しやすい。近いジャンルの完成曲をマスタートラックに一時的に読み込み、音量を揃えた上でA/B切り替えしながら質感・帯域バランスを客観チェックする。","done":false,"inst":"general","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"master","tags":["リファレンス","客観チェック"],"tip":"リファレンス曲もラウドネスメーターで数値を合わせてから聴き比べると、感覚だけに頼らない判断ができる。","title":"リファレンス曲とのA/B比較を必ず行う"},{"id":"mast-03","added":"2026-09-15","body":"スマホのスピーカーなど片方の耳/モノラル再生環境で聴かれることも多い。ステレオイメージを広げすぎた楽器がモノラルで位相干渉を起こし薄くなっていないか確認する。","done":false,"inst":"general","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"master","tags":["モノラル互換","位相"],"tip":"マスターチャンネルに一時的にモノ変換のユーティリティを挿し、ステレオ/モノを切り替えて聴き比べる。","title":"モノラル互換を必ず確認する"},{"id":"midi-01","added":"2026-09-15","body":"打ち込みが機械的に聴こえる最大要因はベロシティの均一さ。フレーズの山(強調したい音)に向けて緩やかに強弱の波を作ると生演奏らしさが出る。","done":false,"inst":"general","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"midi","tags":["ヒューマナイズ","ベロシティ"],"tip":"MIDIエディタの「ロジカルエディタ」でランダマイズ+手動修正を組み合わせると時短しつつ不自然さを回避できる。","title":"ベロシティに“波”を作ってヒューマナイズ"},{"id":"midi-02","added":"2026-09-15","body":"100%クオンタイズは音楽的なゆらぎを消してしまう。Cubaseのクオンタイズストレングス(強さ)を50〜80%程度に設定すると、グリッドに寄せつつ人間味を残せる。","done":false,"inst":"general","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"midi","tags":["クオンタイズ","MIDI設定"],"tip":"プリファレンス > MIDI で「クオンタイズ後もイテレイト」を有効にすると、演奏後も継続的に補正がかかり微調整が楽。","title":"クオンタイズは“強さ”を弱めにかける"},{"id":"midi-03","added":"2026-09-15","body":"ドラムやベースに、意図的に聴こえるか聴こえないかの弱音(ゴーストノート)を挟むとグルーヴに厚みが出る。特にスネアの合間やベースの16分の裏に有効。","done":false,"inst":"drums","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"midi","tags":["グルーヴ","ドラム","ベース"],"tip":"ベロシティを20〜35程度に固定したノートをコピー&ペーストで挟み込み、まとめて微調整すると効率的。","title":"ゴーストノートでグルーヴを底上げ"},{"id":"midi-04","added":"2026-09-15","body":"先にコードトラックでコード進行を確定させておくと、後からベース・ピアノ・ストリングスをコードに追従させて自動生成でき、転調や進行変更にも一括対応できる。","done":false,"inst":"general","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"midi","tags":["コードトラック","効率化"],"tip":"「コードイベントをMIDIトラックに変換」機能で仮アレンジを一気に作り、そこから手を入れると初動が速い。","title":"コードトラックでアレンジ全体を一括管理"},{"id":"mix-01","added":"2026-09-15","body":"VOCALOIDをオーディオ化してVariAudioで微修正する際、セグメントを完全に一直線にすると不自然になりやすい。ピッチカーブを少し残す(補正強度を100%にしない)のがコツ。","done":false,"inst":"vocal","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"mix","tags":["VariAudio","ピッチ補正"],"tip":"セグメントを選択してから「ピッチを平坦化」のスライダーを70〜85%程度に留めると自然な揺らぎが残る。","title":"VariAudioで“ケロらせすぎ”を防ぐピッチ補正"},{"id":"mix-02","added":"2026-09-15","body":"まず200〜400Hz付近のこもりや、3〜5kHzの刺さりを削り、その後で高域の艶(8kHz以上)を軽くブーストすると輪郭がクリアになる。足し算だけのEQは濁りの原因になりやすい。","done":false,"inst":"vocal","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"mix","tags":["EQ","ボーカル"],"tip":"CubaseのフリーEQ(旧Frequency 2)でハイパスを80〜100Hz付近から緩やかにかけ、不要な低域を先に整理してから中高域を追い込む。","title":"ボーカルEQは“削ってから足す”"},{"id":"mix-03","added":"2026-09-15","body":"キックとベースが同じ低域で喧嘩すると輪郭がぼやける。ベースにキックをトリガーにした軽いサイドチェインコンプをかけると、キックの度に一瞬ベースが凹み、両方の存在感が両立する。","done":false,"inst":"bass","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"mix","tags":["サイドチェイン","ベース","キック"],"tip":"CubaseのCompressor(VSTダイナミクス)のサイドチェイン入力にキックトラックをルーティングし、レシオ2:1程度・浅めのかかりから始める。","title":"サイドチェインでキックとベースの帯域を住み分け"},{"id":"mix-04","added":"2026-09-15","body":"各トラックに個別リバーブを挿すと空間がバラバラになりがち。共通のリバーブをFXチャンネルに立てて各トラックからセンドする方式にすると、一つの部屋で鳴っているような一体感が出る。","done":false,"inst":"general","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"mix","tags":["リバーブ","空間系"],"tip":"ショートリバーブ(質感用)とロングリバーブ(空間用)の2系統をFXチャンネルとして用意し、楽器ごとにセンド量の配分を変える。","title":"リバーブは“Send”で空間を統一する"},{"id":"mix-05","added":"2026-09-15","body":"1〜4kHz帯はボーカルの明瞭度に直結する帯域。ギターやシンセがここで被っていると歌が埋もれる。オケ側のこの帯域を数dB削るだけでボーカルの抜けが劇的に改善することが多い。","done":false,"inst":"vocal","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"mix","tags":["帯域整理","ボーカル抜け"],"tip":"オケだけソロ再生した状態でアナライザーを見て、ボーカルの帯域と重なるピークを探し、そこをピンポイントでカットする。","title":"ボーカルとオケの棲み分けはミッドレンジで決まる"},{"id":"voc-01","added":"2026-09-15","body":"フレーズ語尾を機械的に伸ばさず、わずかに音量とピッチを落として“抜く”処理を入れると人間の呼気に近づく。特にバラード系で効果大。","done":false,"inst":"vocal","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"vocaloid","tags":["調声","表現"],"tip":"VOCALOIDエディタのダイナミクス/ピッチベンドカーブを語尾だけ緩やかに下降させ、Cubase側ではそのオーディオにボリュームオートメーションで軽いフェードを重ねる。","title":"語尾の“抜き”でリアルな息遣いを演出"},{"id":"voc-02","added":"2026-09-15","body":"半音〜全音程度の小さい音程差には短いしゃくりを、跳躍が大きい部分には長めのポルタメントを入れると自然に聴こえる。全部に均一にかけると“ボカロ特有のクセ”として悪目立ちする。","done":false,"inst":"vocal","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"vocaloid","tags":["ポルタメント","調声"],"tip":"サビの重要フレーズだけ手動でしゃくりを調整し、他は薄めに一括設定するとメリハリが出て作業時間も短縮できる。","title":"しゃくり(ポルタメント)は音程差で使い分け"},{"id":"voc-03","added":"2026-09-15","body":"全ノートを完全にグリッド通りに置くと機械的に聴こえやすい。フレーズの入りをわずかに早め、語尾をわずかに遅らせるなど数十ミリ秒単位のズレを入れると人間らしいタメが生まれる。","done":false,"inst":"vocal","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"vocaloid","tags":["タイミング","調声"],"tip":"ノートごとに±10〜30ms程度ずらす。Cubase上でVOCALOIDトラックをオーディオ化した後、VariAudioのタイムクオンタイズで微調整すると精密にコントロールできる。","title":"タイミングをわずかに前後させて“歌い癖”を作る"},{"id":"voc-04","added":"2026-09-15","body":"曲全体で同じビブラート設定だと単調になる。サビの盛り上がり部分だけ深さ・速さを少し強めると感情の高まりを表現できる。逆にAメロは浅めにして対比を作る。","done":false,"inst":"vocal","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"vocaloid","tags":["ビブラート","感情表現"],"tip":"VOCALOIDのビブラートパラメータをセクションごとにプリセット分けして保存し、コピペで一括適用すると調整の手間が減る。","title":"サビはビブラート幅を意図的に変化させる"},{"id":"voc-05","added":"2026-09-15","body":"サ行・タ行など子音が強すぎるとミックスで耳に刺さりやすい。逆に弱すぎると歌詞が聞き取りにくくなる。曲のテンポやジャンルに応じて子音の長さ・強さパラメータを調整する。","done":false,"inst":"vocal","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"vocaloid","tags":["子音","ミックス連携"],"tip":"デエッサー処理の前段階として、調声時点で子音を軽く削っておくとミックス時のディエッシングが最小限で済む。","title":"子音の強さで“抜け”をコントロール"},{"id":"work-01","added":"2026-09-15","body":"毎回トラックを作り直すのは非効率。ボカロ曲用にドラム・ベース・ボーカル・コーラス・FXチャンネルまで組んだテンプレートを1つ作っておくと、着手から作曲開始までの時間が大幅に短縮される。","done":false,"inst":"general","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"cubase","tags":["テンプレート","効率化"],"tip":"「ファイル > テンプレートとして保存」でプロジェクト全体を保存しておき、新規プロジェクト作成時に呼び出す。","title":"テンプレートプロジェクトで初動を高速化"},{"id":"work-02","added":"2026-09-15","body":"デフォルトのショートカットを全部覚える必要はない。分割・ミュート・クオンタイズなど自分が1日に何度も使う操作だけ、押しやすいキーに割り当て直すと作業速度が体感で変わる。","done":false,"inst":"general","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"cubase","tags":["ショートカット","設定"],"tip":"「キーコマンド」設定画面で自分がよく使う機能を検索し、片手で押せる位置(Z, X, C周辺など)に集約する。","title":"キーコマンドはよく使う操作だけ絞ってカスタム"},{"id":"work-03","added":"2026-09-15","body":"「全トラックのベロシティを一律で下げる」「特定音程だけ抽出して確認する」など、手作業だと時間のかかる修正をロジカルエディタのフィルタ+アクション設定で一括処理できる。","done":false,"inst":"general","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"cubase","tags":["ロジカルエディタ","一括処理"],"tip":"よく使うフィルタ条件はプリセットとして保存しておき、次回以降ワンクリックで呼び出せるようにする。","title":"プロジェクトロジカルエディタで一括修正"},{"id":"work-04","added":"2026-09-15","body":"ステム書き出し・ラフミックス書き出しなど用途別に書き出し設定(サンプルレート・ビット深度・範囲)をプリセット保存しておくと、書き出しミスや設定し忘れを防げる。","done":false,"inst":"general","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"cubase","tags":["書き出し","ミスの防止"],"tip":"「ファイル > 書き出し > オーディオミックスダウン」の設定画面下部でプリセットを保存し、用途ごとに名前を分けておく。","title":"書き出し設定はプリセット化して確認漏れを防止"},{"id":"arr-05","added":"2026-09-19","body":"ボカロ曲でよく使われる進行にはそれぞれ得意な雰囲気がある。感動・切なさ系は王道進行、安心感のあるポップさはカノン進行、疾走感とキャッチーさは小室進行、おしゃれ・都会的な質感は丸サ進行(オンコード多用)が向く。曲のテーマに合わせて土台を選ぶと方向性がブレにくい。","done":false,"inst":"general","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"arrange","tags":["コード進行","作曲テンプレ"],"tip":"まず4〜8小節のループをコードトラックで組み、雰囲気を確認してからメロディを載せると手戻りが少ない。迷ったら王道進行か小室進行から始めるのが無難。","title":"定番進行のテンプレを使い分ける"},{"id":"comp-05","added":"2026-09-19","body":"人の生歌と違い、ボーカロイドはボイスバンクごとの得意音域に沿って作曲すれば正確に歌い切れる。目安はC3〜C5あたり。人間なら歌いにくい大きな跳躍もあえて使うことで“ボカロらしい”疾走感やキャッチーさが生まれる。","done":false,"inst":"vocal","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"compose","tags":["音域","ボカロらしさ"],"tip":"サビだけオクターブを上げて最高音を置く、16分音符主体の早口フレーズを混ぜるなど、人の生歌では成立しにくい動きを積極的に試す。","title":"ボカロの音域は「C3〜C5」を基準に組む"},{"id":"mix-06","added":"2026-09-19","body":"ボーカルとシンセ・ギターが同じ帯域で常に喧嘩していると、フェーダーだけでは調整しきれないことが多い。ダイナミックEQをシンセ/ギター側に挿し、ボーカルの信号をサイドチェイン入力にすると、歌が鳴っている瞬間だけ被る帯域が自動で少し凹み、常にボーカルの通り道が確保される。","done":false,"inst":"synth","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"mix","tags":["ダイナミックEQ","サイドチェイン","帯域整理"],"tip":"通常のサイドチェインコンプ(帯域全体を下げる)と違い、ぶつかっている周波数帯だけをピンポイントで下げられるのが利点。ボーカルの主要帯域(1〜4kHz付近)を中心に設定する。","title":"ダイナミックEQでシンセ/ギターをボーカルに自動でダッキング"},{"id":"voc-06","added":"2026-09-19","body":"しゃくり(下から音程を滑らかに上げる歌唱表現)を作る際は、ノートの先頭側を32分音符〜8分音符程度の短い範囲だけ切り出し、その部分の音程を半音〜全音下げるとリアルに聴こえる。次のノートへ音程が上がっていくフレーズほど効果が出やすい。","done":false,"inst":"vocal","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"vocaloid","tags":["しゃくり","調声"],"tip":"サビの重要な跳躍フレーズだけこの手動しゃくりを丁寧に作り込み、他は簡易設定で済ませると作業時間と表現力のバランスが取れる。","title":"しゃくりは「先頭ノートの分割量」で自然さが決まる"},{"id":"work-05","added":"2026-09-19","body":"完成した歌声トラックをスライス系のサンプラー機能に読み込み、任意のタイミングで細かく分割すると、各断片が自動でパッドやMIDIノートに割り当てられる。分割した歌声の断片をリズムに合わせて再配置すれば、独特なボーカルチョップの効果音やフレーズが作れる。","done":false,"inst":"vocal","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"sound","tags":["ボーカルチョップ","サンプラー活用"],"tip":"Aメロなどの静かな場面転換や、落ちサビ明けのアクセントとして短く挟むと効果的。やりすぎると聴き取りづらくなるので使用箇所は絞る。","title":"サンプラー機能でボーカルチョップを作る"},{"id":"work-06","added":"2026-09-19","body":"和風・和楽器系のフレーズを打ち込む際、ピアノロール上でキーとスケールを指定すると、そのスケールから外れる音の背景色が変わり、外れ音を避けながら旋律を組みやすくなる。都節音階や琉球音階など、通常のメジャー/マイナー以外の音階も自作して登録できる。","done":false,"inst":"synth","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"midi","tags":["スケール設定","和楽器"],"tip":"和楽器音源を使うパートだけこの機能を有効にしておくと、洋楽器パートとの打ち込みを行き来しても音階の混同を防げる。","title":"和楽器フレーズ用にスケールをカスタム設定する"},{"id":"work-07","added":"2026-09-19","body":"左右チャンネルで異なるディレイタイムを設定する(例: 左を短め・右をその倍程度)と、単純なモノラルディレイよりも自然な広がりと心地よさが生まれる。かけすぎず“薄く”常時かけっぱなしにする使い方が特に効果的。","done":false,"inst":"general","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"mix","tags":["ディレイ","空間系"],"tip":"ボーカルやリードシンセのセンド用FXチャンネルとして常設しておき、曲全体に一貫した空間の質感を持たせる。","title":"左右で長さの違うステレオディレイを薄くかける"},{"id":"work-08","added":"2026-09-20","body":"矢印キーでのトラック移動は、選択中のイベントの有無によって次に選択されるトラックの挙動が変わる仕様になっている。そのため空白のトラックが挟まっていると、読み飛ばされているように感じることがある。","fix":"「環境設定」→「編集操作」→「上下の矢印キーをトラックの選択だけに使う(パートには使わない)」をオンにすると、矢印キーが純粋なトラック選択専用になり、空白トラックも含めて並び順通り1つずつ移動するようになる。","sec":"trouble","src":{"kind":"memo","label":"トラブル解決メモ","url":""},"star":false,"status":"solved","sub":"cubase","tags":["トラック選択","ショートカット"],"title":"上下矢印キーでのトラック選択、空白トラックが飛ばされる問題"},{"id":"work-09","added":"2026-09-20","body":"アップデートを機にエディター関連の環境設定がリセットされ、これまで別ウィンドウで開いていたキーエディターやサンプルエディターが、プロジェクトウィンドウ下部の「下ゾーン」に開くようになることがある。","fix":"「環境設定」→「エディター」内にある、ダブルクリック時の開き方に関する項目を見直す。UI言語が英語表示に切り替わっている場合は項目名も英語表記になるため注意。","sec":"trouble","src":{"kind":"memo","label":"トラブル解決メモ","url":""},"star":false,"status":"solved","sub":"cubase","tags":["エディター","環境設定"],"title":"アップデート後にエディターが下ゾーンで開くようになった"},{"id":"work-10","added":"2026-09-20","body":"アップデート後にツールバーの表示設定がリセットされ、ノートの色分け基準(ベロシティ/トラックカラーなど)を選ぶ「カラー」メニューがツールバーから消えてしまうことがある。","fix":"キーエディターのツールバー上、何もないところで右クリックし、表示されたメニューから「カラー」項目にチェックを入れると、ツールバーにカラーメニューが復活する。","sec":"trouble","src":{"kind":"memo","label":"トラブル解決メモ","url":""},"star":false,"status":"solved","sub":"cubase","tags":["カラー設定","ツールバー"],"title":"キーエディターのカラーメニューが表示されない"},{"id":"work-11","added":"2026-09-20","body":"キーエディターのカラーメニューから、ノートの色分け基準を切り替えられる。ベロシティ基準にすると強弱が視覚的に把握しやすく、トラックカラー基準にすると見た目の気分転換になる。","done":false,"inst":"general","sec":"tech","src":{"kind":"memo","label":"初期ノート","url":""},"star":false,"sub":"cubase","tags":["ノートカラー","ベロシティ"],"tip":"普段の打ち込み作業はベロシティ表示、仕上げ間近など気分を上げたい時はトラックカラー表示、というように用途で切り替えるのがおすすめ。","title":"MIDIノートの色をベロシティ/トラックカラーで使い分ける"},{"id":"work-12","added":"2026-09-20","body":"Cubase 15では、デフォルト状態でツールバー上の「クオンタイズプリセット」が折りたたまれて隠れている。メインのプロジェクトウィンドウ、キーエディターのどちらのツールバーでも同様に起こる。","fix":"ツールバー上にある、縦に並んだ小さいドット(折りたたみアイコン)をクリックすると、隠れていたクオンタイズプリセットの数値が展開されて表示される。","sec":"trouble","src":{"kind":"memo","label":"トラブル解決メモ","url":""},"star":false,"status":"solved","sub":"cubase","tags":["クオンタイズ","Cubase 15"],"title":"クオンタイズプリセット(1/16など)が見当たらない"},{"id":"work-13","added":"2026-09-20","body":"「Loading samples failed. Plug-in will not make sound.」は、プラグインがサンプルライブラリを読み込めていないという意味のエラー。フォルダの移動、再インストール、環境の変更のあとに出ることがある。","fix":"プラグイン上部の歯車アイコンから設定を開き、Instrument Path(サンプルの保存場所)を確認する。分からない場合は、エクスプローラーで拡張子「.ascf」を検索するとサンプルの場所が分かる。それでも直らなければ、完全版インストーラーを再ダウンロードして再インストールする。※前回は、パスが「None」表示のまま、いつの間にか復旧した(原因は未特定)。","sec":"trouble","src":{"kind":"memo","label":"トラブル解決メモ","url":""},"star":false,"status":"solved","sub":"plugin","tags":["Ample Guitar","エラー"],"title":"Ample Guitarで「Loading samples failed」が出て音が鳴らない"},{"id":"art-20261017-1","added":"2026-10-17","body":"Bメロ→サビ、ビルドアップ→ドロップのつなぎを、リズムパターンの変化、フィルターで帯域を絞る(音を消すだけでなく)、オートメーションで上昇感を足す、の3点で作る。実演は Ableton Live だが中身はDAWを問わない。","checked":false,"done":false,"inst":"general","sec":"tech","src":{"kind":"article","label":"Sleepfreaks（動画）","url":"https://sleepfreaks-dtm.com/ableton-live-tips/b-sabi/"},"star":false,"sub":"arrange","tags":["展開","ビルドアップ","オートメーション"],"tip":"Cubase ならサビ前2小節だけ、オケのバスにハイパスのオートメーションを書いて少しずつ開け、サビ頭で戻す。","title":"サビ直前は「リズム・帯域・時間」の3つで盛り上げる"},{"id":"art-20261017-2","added":"2026-10-17","body":"Faith Monaco の Serum 解説。エフェクトを足す前に、PWM・ベンド・デチューンで2層のベースの荒さを取っておく。プリセットは単体ではなく、808やスネアを鳴らしながら作る。","checked":false,"done":false,"inst":"synth","sec":"tech","src":{"kind":"article","label":"Splice Blog","url":"https://splice.com/blog/faith-monaco-serum-sound-design-tips/"},"star":false,"sub":"sound","tags":["Serum 2","ベース","音作り"],"tip":"Serum 2 でベースを作るときは、ドラムのループを流しながら、FX ラックを全部オフにした状態で波形とデチューンから詰める。","title":"シンセはエフェクトを積む前に元の音を整える"},{"id":"song-20261017","added":"2026-10-17","body":"Daft Punk「Get Lucky」では、Nile Rodgers のギターは2本のパートでできていて、ミックスの Mick Guzauski が手を入れたのは卓のEQで5k付近を持ち上げた程度。ベースの Nathan East は、ギターが乗って曲の感じが変わったため約半年後にベースを録り直し、ギターのリズムに噛み合わせたと語っている。","checked":false,"done":false,"inst":"guitar","sec":"tech","src":{"kind":"song","label":"Get Lucky / Daft Punk","url":"https://www.youtube.com/watch?v=5NV6Rdv1a3I"},"star":false,"sub":"arrange","tags":["カッティング","ギター","ベース","グルーヴ"],"tip":"Axe-Fx で録ったカッティングは、高域を少し持ち上げるだけに留めてどこまで素で抜けるか試す。打ち込みベース(EZbass や MODO BASS 2)は、ギターを録ったあとに16分の位置をギターに合わせて打ち直す。","title":"カッティングは「加工で太く」より「役割の違う2本」で"},{"id":"gear-20261018","added":"2026-10-18","body":"SD3 の MIXER は、水色＝マイクの生信号（Kick In/Out/Sub）、黄色＝それを加工した結果（Kick Comp など）、赤＝メイン出力の3種類。しんろっく氏の解説では、生信号と加工済みを両方出すと音が二重になって濁るため、黄色の Kick Comp だけを別出力に回すのが良いとされている。全チャンネルをバラすと卸しが増えて混乱するだけ。手順は MIXER 左上のメニューから Apply Multichannel Outputs → Cubase 側の Inspector の矢印を開いて全出力を有効にする。","checked":false,"done":false,"inst":"drums","sec":"tech","src":{"kind":"article","label":"shinrockmusic.com（しんろっく）","url":"https://shinrockmusic.com/superior-drummer3-parallel-out-cubase/"},"star":false,"sub":"mix","tags":["Superior Drummer 3","パラアウト","Cubase","ドラムミックス"],"tip":"まずは Kick（Comp）・Snare（Comp）・Overheads（ステレオ）・Room（ステレオ）の4系統だけで立ち上げる。オーバーヘッドやルームをキックに混ぜると輪郭がぼやけるので別々のままにして、Pro-Q 3 と soothe2 は Kick Comp トラック単体に挿す。","title":"Superior Drummer 3 のパラアウトは「黄色の加工済み」だけを出す"},{"id":"song-20261018","added":"2026-10-18","body":"Chinozo はインタビューで、かわいい雰囲気の曲でもギターは“かわいい”ではなく“かっこいい”方向で鳴らし、かわいさはシンセ側で出していると話している。自分の音を「バンドのロックとエレクトロの中間」と位置づけ、暗さの基準値を先に決めてから明るさを足していく作り方。ギターは全曲 Fender ストラトキャスター。歌はビブラートをあえて抑えて幼い質感にしているとのこと。","checked":false,"done":false,"inst":"general","sec":"tech","src":{"kind":"song","label":"グッバイ宣言 / Chinozo feat. flower","url":"https://plugplus.rittor-music.co.jp/learning/interview/vocalockmania1_chinozo/"},"star":false,"sub":"arrange","tags":["ボカロック","アレンジ","音色の役割分担","Chinozo"],"tip":"Cubase で、ギターは歪みとカッティングで硬さ側に固定したまま、同じフレーズを Serum 2 のプラックで重ねずに別パートとして“かわいい”側を担当させる。歌は Synthesizer V Studio 2 のビブラート量を一度ゼロ近くまで落として、どこまで幼く聞こえるか試す。","title":"明るい曲でも楽器ごとに担当を割る（ギターは硬く、かわいさはシンセで）"}]}</script>
+
+<script>
+(function () {
+  "use strict";
+
+  /* =========================================================================
+     iPhone版（GitHub Pages）。
+     読み込み元は2つ:
+       SNAP  … このファイルに焼き込まれた Claude 側のノート（差し替えで更新される）
+       LOCAL … この端末で書いた分（localStorage。差し替えても消えない）
+     表示は「SNAP に LOCAL を重ねたもの」。LOCAL が常に勝つ。
+     ========================================================================= */
+
+  const LS_KEY = "bokatech_local_v1";
+  const LS_VIEW = "bokatech_view_v1";
+
+  const SNAP = (function () {
+    try { return JSON.parse(document.getElementById("snapshot").textContent); }
+    catch (e) { return { built: "", notes: [] }; }
+  })();
+
+  function loadLocal() {
+    try {
+      const o = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+      if (o && typeof o === "object") return { patch: o.patch || {}, mine: o.mine || {}, del: o.del || [] };
+    } catch (e) {}
+    return { patch: {}, mine: {}, del: [] };
+  }
+  let LOCAL = loadLocal();
+  let saveFailed = false;
+  function saveLocal() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(LOCAL)); saveFailed = false; }
+    catch (e) { saveFailed = true; }
+  }
+
+  /* 棚と小分け。むんさんの言葉で */
+  const SECS = {
+    trouble: { name: "とらぶる", what: "過去に起きたトラブルと、その直し方",
+      subs: [["cubase", "Cubase"], ["plugin", "プラグイン・音源"], ["pc", "PC・機材"], ["other", "そのほか"]] },
+    song: { name: "がっきょく", what: "1曲ずつの制作メモ。機材・プラグイン・次にやること",
+      subs: [["idea", "アイデア"], ["making", "制作中"], ["mix", "ミックス中"], ["done", "完成"], ["released", "公開済み"]] },
+    tech: { name: "てくにっく", what: "作曲からミックスまでのコツ。思いつきは「むん」へ",
+      subs: [["mun", "むん"], ["compose", "作曲"], ["arrange", "アレンジ"], ["midi", "打ち込み"], ["vocaloid", "調声"],
+             ["sound", "音作り"], ["mix", "MIX"], ["master", "マスタリング"], ["cubase", "Cubase"]] }
+  };
+  const SEC_ORDER = ["song", "tech", "trouble"];
+  const DIRS = { rock: "ボカロック・ポップス", edm: "EDM・ダンス", other: "そのほか" };
+  const INSTS = [["general", "全体"], ["vocal", "ボーカル"], ["drums", "ドラム"], ["bass", "ベース"], ["synth", "シンセ・鍵盤"], ["guitar", "ギター"], ["strings", "ストリングス"]];
+  const SRCK = { song: "今日の1曲", article: "記事・動画", memo: "" };
+  const subName = (sec, k) => ((SECS[sec] || { subs: [] }).subs.find(s => s[0] === k) || [k, k || "未分類"])[1];
+  const instName = k => (INSTS.find(i => i[0] === k) || [k, k])[1];
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const safeUrl = u => /^https?:\/\//i.test(String(u || "")) ? String(u) : "";
+  const today = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+  const byNewest = (a, b) => String(b.added || "").localeCompare(String(a.added || "")) || String(a.id).localeCompare(String(b.id));
+
+  /* ---------- SNAP と LOCAL を重ねる ---------- */
+  let notes = [];
+  function rebuild() {
+    const del = new Set(LOCAL.del);
+    const out = [];
+    (SNAP.notes || []).forEach(raw => {
+      if (del.has(raw.id)) return;
+      const n = Object.assign({}, raw, LOCAL.patch[raw.id] || {});
+      if (n.sec === "sample") { n.sec = "tech"; n.sub = "sound"; }
+      if (n.sec && SECS[n.sec]) out.push(n);
+    });
+    Object.keys(LOCAL.mine).forEach(id => {
+      if (del.has(id)) return;
+      const n = Object.assign({ id: id }, LOCAL.mine[id]);
+      n.mine = true;
+      if (n.sec && SECS[n.sec]) out.push(n);
+    });
+    notes = out;
+  }
+  function patch(id, fields) {
+    if (LOCAL.mine[id]) Object.assign(LOCAL.mine[id], fields);
+    else LOCAL.patch[id] = Object.assign(LOCAL.patch[id] || {}, fields);
+    saveLocal(); rebuild();
+  }
+  function removeNote(id) {
+    if (LOCAL.mine[id]) delete LOCAL.mine[id];
+    else { if (LOCAL.del.indexOf(id) < 0) LOCAL.del.push(id); delete LOCAL.patch[id]; }
+    saveLocal(); rebuild();
+  }
+
+  let view = { name: "home", sec: null, sub: "all", id: null, flag: "all" };
+  try { const v = JSON.parse(localStorage.getItem(LS_VIEW) || "null"); if (v && v.name !== "detail") view = Object.assign(view, v); } catch (e) {}
+  const remember = () => { try { localStorage.setItem(LS_VIEW, JSON.stringify(view)); } catch (e) {} };
+
+  let term = "", confirmDel = false, editingId = null;
+
+  /* ---------- 共通の部品 ---------- */
+  function itemCard(n) {
+    const bits = [];
+    if (n.checked === false) bits.push(`<span class="tag new">未確認</span>`);
+    if (n.mine) bits.push(`<span class="tag mine">iPhone</span>`);
+    if (n.sec === "trouble") bits.push(n.status === "open" ? `<span class="tag open">未解決</span>` : `<span class="tag ok">解決済み</span>`);
+    bits.push(`<span class="tag k">${esc(subName(n.sec, n.sub))}</span>`);
+    if (n.sec === "tech" && n.inst && n.inst !== "general") bits.push(`<span class="tag">${esc(instName(n.inst))}</span>`);
+    if (n.src && SRCK[n.src.kind]) bits.push(`<span class="tag">${esc(SRCK[n.src.kind])}</span>`);
+    if (n.star) bits.push(`<span class="tag star">★</span>`);
+    if (n.sec === "tech" && n.done) bits.push(`<span class="tag ok">試した</span>`);
+    if (n.sec === "song" && n.due) bits.push(`<span class="tag open">${esc(n.due)}</span>`);
+    const sum = n.sec === "song"
+      ? [n.bpm ? "BPM " + n.bpm : "", n.key, DIRS[n.dir], n.todo ? "次：" + n.todo : ""].filter(Boolean).join("　")
+      : (n.body || n.fix || n.tip || "");
+    return `<button type="button" class="item ${esc(n.sec)}${n.sec === "tech" && n.done ? " is-done" : ""}" data-open="${esc(n.id)}">
+      <span class="t">${esc(n.title)}</span>
+      ${sum ? `<span class="s">${esc(sum)}</span>` : ""}
+      <span class="meta">${bits.join("")}<span class="d">${esc(n.added || "")}</span></span>
+    </button>`;
+  }
+  function hit(n) {
+    if (!term) return true;
+    return [n.title, n.body, n.tip, n.fix, n.plugins, n.gear, n.voice, n.key, n.chords, n.mix, n.todo, n.due, (n.tags || []).join(" "), n.src && n.src.label, subName(n.sec, n.sub)]
+      .join(" ").toLowerCase().includes(term);
+  }
+
+  /* ---------- 描画 ---------- */
+  function render() {
+    document.body.dataset.sec = view.sec || "";
+    $("backBtn").hidden = view.name === "home";
+    $("addBtn").hidden = false;
+    const sec = view.sec ? SECS[view.sec] : null;
+
+    if (view.name === "home") {
+      $("crumb").innerHTML = `<p class="app">ぼかてっく<span>ノート</span></p><div class="path">${notes.length} 件のノート</div>`;
+      $("q").placeholder = "ぜんぶから検索";
+    } else if (view.name === "list") {
+      $("crumb").innerHTML = `<p class="where">${esc(sec.name)}</p><div class="path">${esc(sec.what)}</div>`;
+      $("q").placeholder = sec.name + " の中を検索";
+    } else {
+      $("crumb").innerHTML = `<p class="where">${esc(sec.name)}</p><div class="path">${esc(subName(view.sec, (notes.find(n => n.id === view.id) || {}).sub))}</div>`;
+    }
+    $("q").hidden = view.name === "detail";
+
+    if (view.name === "list") {
+      const inSec = notes.filter(n => n.sec === view.sec);
+      const subs = [["all", "ぜんぶ"]].concat(sec.subs);
+      $("subStrip").innerHTML = subs.map(s => {
+        const c = s[0] === "all" ? inSec.length : inSec.filter(n => n.sub === s[0]).length;
+        return `<button class="chip" type="button" data-sub="${s[0]}" aria-pressed="${view.sub === s[0]}">${esc(s[1])}<span class="n">${c}</span></button>`;
+      }).join("");
+      $("subStrip").hidden = false;
+      const flags = view.sec === "trouble" ? [["open", "未解決だけ"], ["star", "★だけ"]] : view.sec === "song" ? [["active", "進行中だけ"], ["star", "★だけ"]] : [["unread", "未確認だけ"], ["star", "★だけ"], ["todo", "まだ試してない"]];
+      $("flagStrip").innerHTML = flags.map(f => `<button class="chip mini" type="button" data-flag="${f[0]}" aria-pressed="${view.flag === f[0]}">${esc(f[1])}</button>`).join("");
+      $("flagStrip").hidden = false;
+    } else {
+      $("subStrip").hidden = true; $("flagStrip").hidden = true;
+    }
+
+    const v = $("view");
+    if (view.name === "home") v.innerHTML = homeHtml();
+    else if (view.name === "list") v.innerHTML = listHtml();
+    else v.innerHTML = detailHtml();
+
+    $("status").textContent = saveFailed
+      ? "この端末に保存できませんでした。プライベートブラウズを切るか、ホーム画面に追加して開いてください。"
+      : "";
+  }
+
+  function homeHtml() {
+    if (term) {
+      const found = notes.filter(hit).sort(byNewest);
+      return `<div class="home-h">検索結果　${found.length}</div>` +
+        (found.length ? `<div class="list">${found.map(itemCard).join("")}</div>` : `<div class="empty"><b>見つかりませんでした</b>ほかの言葉で探してみてください。</div>`);
+    }
+    const shelf = k => {
+      const s = SECS[k], ns = notes.filter(n => n.sec === k).sort(byNewest);
+      const open = k === "trouble" ? ns.filter(n => n.status === "open").length : 0;
+      const active = k === "song" ? ns.filter(n => ["idea", "making", "mix"].includes(n.sub)).length : 0;
+      const unread = ns.filter(n => n.checked === false).length;
+      return `<button type="button" class="shelf ${k}" data-sec="${k}">
+        <h2>${esc(s.name)}</h2><span class="cnt">${ns.length}<small>件</small></span>
+        <p class="what">${esc(s.what)}</p>
+        ${open ? `<span class="alert">未解決 ${open} 件</span>` : ""}
+        ${active ? `<span class="alert" style="color:var(--c)">進行中 ${active} 曲</span>` : ""}
+        ${unread ? `<span class="alert" style="color:var(--c)">未確認 ${unread} 件</span>` : ""}
+        ${ns.length ? `<span class="latest">${ns.slice(0, 2).map(n => `<span>${esc(n.title)}</span>`).join("")}</span>` : ""}
+      </button>`;
+    };
+    const fresh = notes.filter(n => n.checked === false).sort(byNewest);
+    const mun = notes.filter(n => n.sec === "tech" && n.sub === "mun").sort(byNewest).slice(0, 3);
+    let html = fresh.length ? `<div class="home-h">未確認　${fresh.length}（開くと確認済みになります）</div><div class="list" style="margin-bottom:22px">${fresh.map(itemCard).join("")}</div>` : "";
+    html += `<div class="shelves">${SEC_ORDER.map(shelf).join("")}</div>`;
+    if (mun.length) html += `<div class="home-h">むんのメモ</div><div class="list">${mun.map(itemCard).join("")}</div>`;
+    html += syncHtml();
+    return html;
+  }
+
+  function syncHtml() {
+    const mineN = Object.keys(LOCAL.mine).length;
+    const patchN = Object.keys(LOCAL.patch).length;
+    const delN = LOCAL.del.length;
+    return `<div class="syncbox" id="syncbox">
+      <h3>この端末で書いた分</h3>
+      <p>このページは Claude 側のノートを写したものです。<b>ここで書いた分はこの iPhone の中だけ</b>に残り、HTML を新しいものに差し替えても消えません。</p>
+      <div class="nums">焼き込み ${(SNAP.notes || []).length} 件（${esc(SNAP.built || "日付不明")}時点）　／　この端末：新規 ${mineN}・手直し ${patchN}・消した ${delN}</div>
+      <div class="btns">
+        <button class="btn" type="button" data-sync="copy">書いた分をコピー</button>
+        <button class="btn" type="button" data-sync="file">ファイルに書き出す</button>
+        <button class="btn" type="button" data-sync="show">中身を見る</button>
+      </div>
+      <p class="ok" id="syncOk"></p>
+      <textarea id="syncOut" hidden readonly></textarea>
+      <p>コピーしたものを Claude のチャットに貼れば、Claude 側のノートに取り込めます。取り込んでもこの端末の分は消しません。</p>
+    </div>`;
+  }
+
+  function listHtml() {
+    let ns = notes.filter(n => n.sec === view.sec);
+    if (view.sub !== "all") ns = ns.filter(n => n.sub === view.sub);
+    if (view.flag === "star") ns = ns.filter(n => n.star);
+    if (view.flag === "todo") ns = ns.filter(n => !n.done);
+    if (view.flag === "open") ns = ns.filter(n => n.status === "open");
+    if (view.flag === "unread") ns = ns.filter(n => n.checked === false);
+    if (view.flag === "active") ns = ns.filter(n => ["idea", "making", "mix"].includes(n.sub));
+    ns = ns.filter(hit).sort(byNewest);
+    if (!ns.length) {
+      const empty = view.sec === "song" && !term && view.flag === "all" && view.sub === "all"
+        ? `<b>まだ曲がありません</b>「＋ 書く」から1曲目を足せます。曲名だけでも保存できます。`
+        : view.sub === "mun" && !term && view.flag === "all"
+        ? `<b>むんのメモはまだ空です</b>思いついたことを「＋ 書く」から残しておけます。タイトルだけでも保存できます。`
+        : `<b>ここにはまだ何もありません</b>${term || view.flag !== "all" ? "検索語か絞り込みを変えてみてください。" : "「＋ 書く」から足せます。"}`;
+      return `<div class="empty">${empty}</div>`;
+    }
+    return `<div class="list">${ns.map(itemCard).join("")}</div>`;
+  }
+
+  function detailHtml() {
+    const n = notes.find(x => x.id === view.id);
+    if (!n) return `<div class="empty"><b>このノートは見つかりませんでした</b>消されたか、まだ読み込み中です。</div>`;
+    const src = n.src || {}, url = safeUrl(src.url);
+    const tags = [];
+    if (n.mine) tags.push(`<span class="tag mine">iPhone で書いた</span>`);
+    if (n.sec === "trouble") tags.push(n.status === "open" ? `<span class="tag open">未解決</span>` : `<span class="tag ok">解決済み</span>`);
+    tags.push(`<span class="tag k">${esc(subName(n.sec, n.sub))}</span>`);
+    if (n.sec === "tech" && n.inst && n.inst !== "general") tags.push(`<span class="tag">${esc(instName(n.inst))}</span>`);
+    (n.tags || []).forEach(t => tags.push(`<span class="tag">${esc(t)}</span>`));
+    const B = (cls, lab, txt) => txt ? `<div class="block ${cls}"><span class="lab">${lab}</span><div class="txt">${esc(txt)}</div></div>` : "";
+    let from = "";
+    if ((src.label || url) && n.sec !== "trouble") {
+      const kind = SRCK[src.kind] ? esc(SRCK[src.kind]) + "　" : "";
+      from = `<div class="block"><span class="lab">出どころ</span><div class="txt">${kind}${url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(src.label || url)}</a>` : esc(src.label)}</div></div>`;
+    }
+    const tr = n.sec === "trouble";
+    if (n.sec === "song") return songDetail(n, tags, B);
+    const acts = `<div class="actions">
+      ${tr ? `<button class="act done" type="button" data-act="status" aria-pressed="${n.status !== "open"}">${n.status === "open" ? "解決した" : "✓ 解決済み"}</button>`
+           : `<button class="act done" type="button" data-act="done" aria-pressed="${!!n.done}">${n.done ? "✓ 試した" : "試した？"}</button>`}
+      <button class="act star" type="button" data-act="star" aria-pressed="${!!n.star}">${n.star ? "★ お気に入り" : "☆ お気に入り"}</button>
+      ${confirmDel
+        ? `<button class="act push" type="button" data-act="nodel">やめる</button><button class="act warn" type="button" data-act="del">本当に消す</button>`
+        : `<button class="act push" type="button" data-act="edit">直す</button><button class="act" type="button" data-act="ask">消す</button>`}
+    </div>`;
+    return `<article class="detail">
+      <div class="meta">${tags.join("")}<span class="d">${esc(n.added || "")}</span></div>
+      <h2>${esc(n.title)}</h2>
+      ${B("", tr ? "何が起きたか" : "内容", n.body)}
+      ${tr ? B("fix", "直し方", n.fix) : B("try", "やってみる", n.tip)}
+      ${from}
+      ${acts}
+    </article>`;
+  }
+
+  function songDetail(n, tags, B) {
+    const F = (lab, v) => v ? `<div class="fact"><span class="lab">${lab}</span><span class="v">${esc(v)}</span></div>` : "";
+    const facts = [F("BPM", n.bpm), F("キー", n.key), F("方向", DIRS[n.dir]), F("歌声", n.voice), F("締切・応募先", n.due)].join("");
+    const order = SECS.song.subs.map(x => x[0]);
+    const next = order[order.indexOf(n.sub) + 1];
+    const acts = `<div class="actions">
+      ${next ? `<button class="act" type="button" data-act="nextstage" data-next="${next}">→ ${esc(subName("song", next))}にする</button>` : ""}
+      <button class="act star" type="button" data-act="star" aria-pressed="${!!n.star}">${n.star ? "★" : "☆"}</button>
+      ${confirmDel
+        ? `<button class="act push" type="button" data-act="nodel">やめる</button><button class="act warn" type="button" data-act="del">本当に消す</button>`
+        : `<button class="act push" type="button" data-act="edit">直す</button><button class="act" type="button" data-act="ask">消す</button>`}
+    </div>`;
+    return `<article class="detail">
+      <div class="meta">${tags.join("")}<span class="d">${esc(n.added || "")}</span></div>
+      <h2>${esc(n.title)}</h2>
+      ${facts ? `<div class="facts">${facts}</div>` : ""}
+      ${B("todo", "次にやること", n.todo)}
+      ${B("", "コード進行・構成", n.chords)}
+      ${B("", "使用機材", n.gear)}
+      ${B("", "プラグイン・音源", n.plugins)}
+      ${B("", "ミックス・音作りのメモ", n.mix)}
+      ${B("", "メモ", n.body)}
+      ${acts}
+    </article>`;
+  }
+
+  /* ---------- 移動 ---------- */
+  function go(next) { view = Object.assign(view, next); confirmDel = false; remember(); render(); window.scrollTo(0, 0); }
+  $("backBtn").addEventListener("click", () => {
+    if (view.name === "detail") go({ name: view.sec ? "list" : "home", id: null });
+    else go({ name: "home", sec: null, sub: "all", flag: "all" });
+    term = ""; $("q").value = ""; render();
+  });
+  $("q").addEventListener("input", e => { term = e.target.value.trim().toLowerCase(); render(); });
+
+  /* ---------- 書き出し ---------- */
+  function exportPayload() {
+    return JSON.stringify({
+      app: "bokatech-note",
+      from: "iphone",
+      at: new Date().toISOString(),
+      base: SNAP.built || "",
+      mine: LOCAL.mine,
+      patch: LOCAL.patch,
+      del: LOCAL.del
+    }, null, 1);
+  }
+
+  document.addEventListener("click", async e => {
+    const b = e.target.closest("button");
+    if (!b) return;
+
+    if (b.dataset.sync) {
+      const out = $("syncOut"), ok = $("syncOk"), text = exportPayload();
+      if (b.dataset.sync === "show") { out.hidden = !out.hidden; out.value = text; return; }
+      if (b.dataset.sync === "copy") {
+        try { await navigator.clipboard.writeText(text); ok.textContent = "コピーしました。Claude のチャットに貼ってください。"; }
+        catch (err) { out.hidden = false; out.value = text; out.select(); ok.textContent = "自動コピーできませんでした。下の枠を長押しして全部コピーしてください。"; }
+        return;
+      }
+      if (b.dataset.sync === "file") {
+        try {
+          const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+          const a = document.createElement("a");
+          a.href = url; a.download = "bokatech-iphone-" + today() + ".json";
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          ok.textContent = "書き出しました。";
+        } catch (err) { out.hidden = false; out.value = text; ok.textContent = "書き出せませんでした。下の枠からコピーしてください。"; }
+        return;
+      }
+    }
+
+    if (b.dataset.sec && b.classList.contains("shelf")) { term = ""; $("q").value = ""; go({ name: "list", sec: b.dataset.sec, sub: "all", flag: "all" }); return; }
+    if (b.dataset.sub) { go({ sub: b.dataset.sub }); return; }
+    if (b.dataset.flag) { go({ flag: view.flag === b.dataset.flag ? "all" : b.dataset.flag }); return; }
+    if (b.dataset.open) {
+      const n = notes.find(x => x.id === b.dataset.open);
+      if (n) {
+        if (n.checked === false) patch(n.id, { checked: true });
+        go({ name: "detail", sec: n.sec, id: n.id });
+      }
+      return;
+    }
+    const act = b.dataset.act;
+    if (!act) return;
+    const n = notes.find(x => x.id === view.id);
+    if (!n) return;
+    if (act === "done") patch(n.id, { done: !n.done });
+    else if (act === "star") patch(n.id, { star: !n.star });
+    else if (act === "status") patch(n.id, { status: n.status === "open" ? "solved" : "open" });
+    else if (act === "nextstage") patch(n.id, { sub: b.dataset.next });
+    else if (act === "edit") { openSheet(n); return; }
+    else if (act === "ask") { confirmDel = true; render(); return; }
+    else if (act === "nodel") { confirmDel = false; render(); return; }
+    else if (act === "del") { const s = n.sec; removeNote(n.id); go({ name: "list", sec: s, id: null }); return; }
+    render();
+  });
+
+  /* ---------- 書くシート ---------- */
+  let sheetSec = "tech";
+  $("fInst").innerHTML = INSTS.map(i => `<option value="${i[0]}">${esc(i[1])}</option>`).join("");
+
+  function shapeSheet(sec) {
+    sheetSec = sec;
+    document.body.dataset.sec = sec;
+    const s = SECS[sec];
+    $("fSub").innerHTML = s.subs.map(x => `<option value="${x[0]}">${esc(x[1])}</option>`).join("");
+    const tr = sec === "trouble";
+    const sg = sec === "song";
+    $("lTitle").textContent = tr ? "何が起きた？（ひとことで）" : sg ? "曲名（仮タイトルでOK）" : "タイトル";
+    $("lBody").textContent = tr ? "くわしい状況" : sg ? "メモ" : "内容";
+    $("lSub").textContent = sg ? "いまの段階" : "小分け";
+    $("wSong").hidden = !sg;
+    $("wFix").hidden = !tr; $("wStatus").hidden = !tr;
+    $("wTip").hidden = tr || sg;
+    $("wInstTags").hidden = sec !== "tech";
+    $("wSrc").hidden = tr || sg;
+  }
+  function openSheet(n) {
+    editingId = n ? n.id : null;
+    let sec = n ? n.sec : (view.sec || "tech");
+    let sub = n ? n.sub : (view.sub !== "all" ? view.sub : (sec === "tech" ? "mun" : sec === "song" ? "making" : SECS[sec].subs[0][0]));
+    shapeSheet(sec);
+    $("sheetTitle").textContent = (n ? "直す：" : "書く：") + SECS[sec].name;
+    $("fSub").value = sub;
+    $("fTitle").value = n ? n.title || "" : "";
+    $("fBody").value = n ? n.body || "" : "";
+    $("fFix").value = n ? n.fix || "" : "";
+    $("fStatus").value = n && n.status === "open" ? "open" : "solved";
+    $("fTip").value = n ? n.tip || "" : "";
+    $("fInst").value = n && n.inst ? n.inst : "general";
+    $("fTags").value = n ? (n.tags || []).join("、") : "";
+    $("fSrcLabel").value = n && n.src ? n.src.label || "" : "";
+    $("fSrcUrl").value = n && n.src ? n.src.url || "" : "";
+    const sv = (id, k, d) => { $(id).value = n && n[k] != null ? n[k] : (d || ""); };
+    sv("sDir", "dir", "rock"); sv("sVoice", "voice"); sv("sBpm", "bpm"); sv("sKey", "key"); sv("sChords", "chords");
+    sv("sGear", "gear"); sv("sPlugins", "plugins"); sv("sMix", "mix"); sv("sTodo", "todo"); sv("sDue", "due");
+    $("formErr").textContent = "";
+    $("sheetBack").hidden = false;
+    setTimeout(() => $("fTitle").focus(), 30);
+  }
+  function closeSheet() { $("sheetBack").hidden = true; editingId = null; document.body.dataset.sec = view.sec || ""; }
+  $("addBtn").addEventListener("click", () => openSheet(null));
+  $("cancelBtn").addEventListener("click", closeSheet);
+  $("sheetBack").addEventListener("click", e => { if (e.target === $("sheetBack")) closeSheet(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("sheetBack").hidden) closeSheet(); });
+
+  $("sheet").addEventListener("submit", e => {
+    e.preventDefault();
+    const title = $("fTitle").value.trim();
+    if (!title) { $("formErr").textContent = "タイトルを入れてください。"; return; }
+    const url = $("fSrcUrl").value.trim();
+    if (url && !safeUrl(url)) { $("formErr").textContent = "リンクは https:// から始まる形で入れてください。"; return; }
+    const old = editingId ? notes.find(x => x.id === editingId) : null;
+    const sec = sheetSec, sub = $("fSub").value;
+    const doc = {
+      sec, sub, title,
+      body: $("fBody").value.trim(),
+      tags: sec === "tech" ? $("fTags").value.split(/[、,，]/).map(s => s.trim()).filter(Boolean).slice(0, 8) : (old && old.tags) || [],
+      added: old && old.added ? old.added : today(),
+      star: old ? !!old.star : false,
+      checked: true
+    };
+    if (sec === "trouble") { doc.fix = $("fFix").value.trim(); doc.status = $("fStatus").value; }
+    else if (sec === "song") {
+      ["dir", "voice", "bpm", "key", "chords", "gear", "plugins", "mix", "todo", "due"].forEach(k => {
+        doc[k] = $("s" + k[0].toUpperCase() + k.slice(1)).value.trim();
+      });
+    } else {
+      doc.tip = $("fTip").value.trim();
+      doc.done = old ? !!old.done : false;
+      doc.src = { kind: old && old.src && old.src.kind ? old.src.kind : "memo", label: $("fSrcLabel").value.trim(), url };
+    }
+    if (sec === "tech") doc.inst = $("fInst").value;
+
+    if (editingId) {
+      patch(editingId, doc);
+      closeSheet(); render();
+    } else {
+      const id = "ip-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 6);
+      LOCAL.mine[id] = doc;
+      saveLocal(); rebuild();
+      closeSheet();
+      go({ name: "detail", sec, id });
+    }
+  });
+
+  /* ---------- 起動 ---------- */
+  rebuild();
+  render();
+})();
+</script>
+</body>
+</html>
